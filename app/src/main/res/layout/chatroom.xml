@@ -8,28 +8,39 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="?android:attr/actionBarSize"
-        android:background="?attr/colorPrimary"> <!-- 建议使用主题颜色 -->
+        android:background="?attr/colorPrimary">
+
+        <Button
+            android:id="@+id/edit_up"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="10dp"
+            android:background="@mipmap/edit" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:text="多人聊天室"
-            android:textColor="#FFFFFF" 
-            android:textSize="20sp" /> <!-- 建议使用 sp 作为文字单位 -->
+            android:textColor="#FFFFFF"
+            android:textSize="20sp" />
 
-        <Button
-            android:id="@+id/edit_up"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:layout_alignParentStart="true" 
+        <!-- 【新增】连接状态指示器 -->
+        <TextView
+            android:id="@+id/connection_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:layout_marginStart="10dp"
-            android:background="@mipmap/edit" />
+            android:layout_marginEnd="10dp"
+            android:text="连接中..."
+            android:textColor="#FFEB3B"
+            android:textSize="12sp" />
 
     </RelativeLayout>
 
-    <!-- 【核心修复】将 RecyclerView 从 support 库版本替换为 AndroidX 版本 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/msg_recycle_view"
         android:layout_width="match_parent"
@@ -39,7 +50,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"> <!-- 添加 gravity 使组件垂直居中对齐 -->
+        android:gravity="center_vertical">
 
         <EditText
             android:id="@+id/input_text"
@@ -49,7 +60,7 @@
             android:background="@drawable/input"
             android:hint="  输入聊天内容"
             android:maxLines="3"
-            android:minHeight="48dp" /> <!-- 建议：为可点击/触摸的元素设置最小尺寸 -->
+            android:minHeight="48dp" />
 
         <Button
             android:id="@+id/send"
@@ -57,7 +68,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="4dp"
             android:text="发送"
-            android:textSize="17sp" /> <!-- 建议使用 sp 作为文字单位 -->
+            android:textSize="17sp" />
 
     </LinearLayout>
 

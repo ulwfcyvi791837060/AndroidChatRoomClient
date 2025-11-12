@@ -1,17 +1,15 @@
 package com.example.client;
 
-import android
-        .annotation.SuppressLint;
-import android.content.DialogInterface;
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.KeyEvent;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
-// 1. 【修复】迁移到 AndroidX
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,9 +24,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-// 2. 【修复】引入线程池来处理后台任务
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ChatRoom extends AppCompatActivity {
 
@@ -37,6 +35,7 @@ public class ChatRoom extends AppCompatActivity {
     private Button send;
     private Button edit;
     private RecyclerView msgRecyclerView;
+    private TextView connectionStatus; // 【新增】状态文本视图
     private MsgAdapter adapter;
 
     private String name;
@@ -47,29 +46,26 @@ public class ChatRoom extends AppCompatActivity {
     private OutputStream sendOutput;
     private InputStream receiveInput;
 
-    // 使用单线程的线程池来处理所有网络写操作，确保顺序执行
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    // 【修改】使用ScheduledExecutorService来处理定时心跳任务和普通网络任务
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private static final String HEARTBEAT_SIGNAL = "<heartbeat>";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.chatroom);
 
-        // 初始化视图
         initViews();
-        // 初始化 RecyclerView
         initRecyclerView();
 
-        // 获取登录信息
         Intent intent = getIntent();
         name = intent.getStringExtra("name");
         ip = intent.getStringExtra("ip");
         port = intent.getStringExtra("port");
 
-        // 2. 【修复】在后台线程建立网络连接
-        executorService.execute(this::connectToServer);
+        // 在后台线程建立网络连接
+        scheduler.execute(this::connectToServer);
 
-        // 设置点击事件监听
         setupClickListeners();
     }
 
@@ -78,6 +74,7 @@ public class ChatRoom extends AppCompatActivity {
         send = findViewById(R.id.send);
         edit = findViewById(R.id.edit_up);
         msgRecyclerView = findViewById(R.id.msg_recycle_view);
+        connectionStatus = findViewById(R.id.connection_status); // 【新增】获取状态视图实例
 
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
@@ -85,6 +82,7 @@ public class ChatRoom extends AppCompatActivity {
         }
     }
 
+    // ... initRecyclerView() 方法保持不变 ...
     private void initRecyclerView() {
         msgList = new ArrayList<>();
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -96,34 +94,41 @@ public class ChatRoom extends AppCompatActivity {
     private void connectToServer() {
         try {
             socket = new Socket(ip, Integer.parseInt(port));
+            // 启用SO_KEEPALIVE，但自定义心跳更可靠
+            socket.setKeepAlive(true);
             sendOutput = socket.getOutputStream();
             receiveInput = socket.getInputStream();
-            // 连接成功，切换回主线程提示用户并开始监听消息
+
             runOnUiThread(() -> {
                 Toast.makeText(this, "登录成功", Toast.LENGTH_SHORT).show();
-                startListening(); // 连接成功后才开始监听
+                updateConnectionStatus(true, "连接正常");
+                startListening();
+                // 【新增】启动心跳任务
+                startHeartbeat();
             });
         } catch (Exception e) {
             e.printStackTrace();
-            // 连接失败，切换回主线程提示用户并关闭页面
             runOnUiThread(() -> {
                 Toast.makeText(this, "连接服务器失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                updateConnectionStatus(false, "连接失败");
                 finish();
             });
         }
     }
 
     private void startListening() {
-        // 创建一个专门的后台线程来持续接收消息
+        // ... (省略部分代码，逻辑基本不变)
         new Thread(() -> {
             try {
                 byte[] buffer = new byte[1024 * 4];
                 int len;
-                // 当 socket 未关闭且能读到数据时，循环执行
                 while (socket != null && !socket.isClosed() && (len = receiveInput.read(buffer)) != -1) {
                     String receivedMsg = new String(buffer, 0, len);
+                    // 【新增】如果收到的是心跳回声，则忽略，不显示在聊天界面
+                    if (HEARTBEAT_SIGNAL.equals(receivedMsg)) {
+                        continue;
+                    }
                     final Msg msg = new Msg(receivedMsg, Msg.TYPE_RECEIVED);
-                    // 收到消息，切换回主线程更新UI
                     runOnUiThread(() -> {
                         msgList.add(msg);
                         adapter.notifyItemInserted(msgList.size() - 1);
@@ -131,10 +136,12 @@ public class ChatRoom extends AppCompatActivity {
                     });
                 }
             } catch (IOException e) {
-                // 通常是 socket 关闭或网络断开时会进入这里
                 e.printStackTrace();
+            } finally {
+                // 【修改】当监听循环退出时，说明连接已断开
                 runOnUiThread(() -> {
                     if (!isFinishing()) {
+                        updateConnectionStatus(false, "连接已断开");
                         Toast.makeText(ChatRoom.this, "与服务器的连接已断开", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -142,67 +149,113 @@ public class ChatRoom extends AppCompatActivity {
         }).start();
     }
 
-    private void setupClickListeners() {
-        // 退出按钮
-        edit.setOnClickListener(v -> showExitDialog());
+    // 【新增】启动心跳的方法
+    private void startHeartbeat() {
+        // 每隔15秒执行一次心跳任务
+        scheduler.scheduleAtFixedRate(() -> {
+            if (socket != null && !socket.isClosed() && socket.isConnected()) {
+                try {
+                    // 发送一个心跳包
+                    sendOutput.write(HEARTBEAT_SIGNAL.getBytes());
+                    sendOutput.flush();
+                } catch (IOException e) {
+                    // 心跳发送失败，说明连接可能已经断开
+                    e.printStackTrace();
+                    runOnUiThread(() -> updateConnectionStatus(false, "连接异常"));
+                }
+            }
+        }, 15, 15, TimeUnit.SECONDS);
+    }
 
-        // 发送按钮
+    // 【新增】更新UI状态的方法
+    private void updateConnectionStatus(boolean isConnected, String status) {
+        if (isConnected) {
+            connectionStatus.setText(status);
+            connectionStatus.setTextColor(Color.parseColor("#00C853")); // 绿色
+        } else {
+            connectionStatus.setText(status);
+            connectionStatus.setTextColor(Color.parseColor("#D50000")); // 红色
+        }
+    }
+
+    private void sendMessage(final String message) {
+        scheduler.execute(() -> {
+            try {
+                if (sendOutput != null) {
+                    sendOutput.write(message.getBytes());
+                    sendOutput.flush();
+                    runOnUiThread(() -> {
+                        Msg msg = new Msg(message, Msg.TYPE_SENT);
+                        msgList.add(msg);
+                        adapter.notifyItemInserted(msgList.size() - 1);
+                        msgRecyclerView.scrollToPosition(msgList.size() - 1);
+                        inputText.setText("");
+                    });
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatRoom.this, "发送失败", Toast.LENGTH_SHORT).show();
+                    updateConnectionStatus(false, "连接异常");
+                });
+            }
+        });
+    }
+
+
+    private void setupClickListeners() {
+        // ... (退出按钮逻辑不变)
+        edit.setOnClickListener(v -> showExitDialog());
+        // 【修改】发送按钮的逻辑
         send.setOnClickListener(view -> {
             String content = inputText.getText().toString().trim();
             if (!content.isEmpty()) {
                 @SuppressLint("SimpleDateFormat")
                 String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
                 String messageToSend = content + "\n\n来自：" + name + "\n" + date;
-
-                // 2. 【修复】在后台线程发送消息
-                executorService.execute(() -> {
-                    try {
-                        if (sendOutput != null) {
-                            sendOutput.write(messageToSend.getBytes());
-                            sendOutput.flush(); // 确保消息立即发送出去
-
-                            // 发送成功，切换回主线程更新UI
-                            runOnUiThread(() -> {
-                                Msg msg = new Msg(messageToSend, Msg.TYPE_SENT);
-                                msgList.add(msg);
-                                adapter.notifyItemInserted(msgList.size() - 1);
-                                msgRecyclerView.scrollToPosition(msgList.size() - 1);
-                                inputText.setText(""); // 清空输入框
-                            });
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        // 发送失败，切换回主线程提示用户
-                        runOnUiThread(() -> Toast.makeText(ChatRoom.this, "发送失败", Toast.LENGTH_SHORT).show());
-                    }
-                });
+                sendMessage(messageToSend);
             }
         });
     }
 
+    // ... showExitDialog() 和 onKeyDown() 保持不变 ...
+
     private void showExitDialog() {
         new AlertDialog.Builder(this)
-                .setTitle("退出")
-                .setMessage("确定退出登录吗？")
-                .setPositiveButton("确定", (dialog, which) -> finish())
+                .setTitle("提示")
+                .setMessage("确定要退出登录吗？")
+                .setPositiveButton("确定", (dialog, which) -> {
+                    // 关闭Socket连接，清理资源
+                    try {
+                        if (socket != null) {
+                            socket.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    // 关闭当前Activity
+                    finish();
+                })
                 .setNegativeButton("取消", null)
                 .show();
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // 拦截返回键，弹出退出对话框
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             showExitDialog();
-            return true; // 表示事件已处理，不再向后传递
+            return true; // 消费掉这个事件，防止默认的返回行为
         }
         return super.onKeyDown(keyCode, event);
     }
 
+
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // 3. 【修复】在页面销毁时，关闭网络连接和线程池，释放资源
+        // 【修改】关闭所有后台任务和网络连接
+        scheduler.shutdownNow(); // 立即停止所有任务
         try {
             if (socket != null) {
                 socket.close();
@@ -210,6 +263,5 @@ public class ChatRoom extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        executorService.shutdown();
     }
 }
