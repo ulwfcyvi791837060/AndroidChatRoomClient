@@ -1,7 +1,9 @@
 package com.example.client;
 
-import android.support.annotation.NonNull;
-import android.support.v7.widget.RecyclerView;
+// 【修复】将 import 语句迁移到 AndroidX
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,7 +14,7 @@ import java.util.List;
 
 public class MsgAdapter extends RecyclerView.Adapter<MsgAdapter.ViewHolder> {
 
-    private List<Msg> mMsgList;
+    private final List<Msg> mMsgList;
 
     static class ViewHolder extends RecyclerView.ViewHolder {
 
@@ -30,32 +32,32 @@ public class MsgAdapter extends RecyclerView.Adapter<MsgAdapter.ViewHolder> {
         }
     }
 
-    public MsgAdapter(List<Msg> mMsgList) {
-        this.mMsgList = mMsgList;
+    public MsgAdapter(List<Msg> msgList) {
+        this.mMsgList = msgList;
     }
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
-
-        View view = LayoutInflater.from(viewGroup.getContext()).
-                inflate(R.layout.msg_item, viewGroup, false);
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).
+                inflate(R.layout.msg_item, parent, false);
         return new ViewHolder(view);
-
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder viewHolder, int i) {
-        Msg msg = mMsgList.get(i);
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        Msg msg = mMsgList.get(position);
 
         if (msg.getType() == Msg.TYPE_RECEIVED) {
-            viewHolder.leftLayout.setVisibility(View.VISIBLE);
-            viewHolder.rightLayout.setVisibility(View.GONE);
-            viewHolder.leftMsg.setText(msg.getContent());
-        } else {
-            viewHolder.leftLayout.setVisibility(View.GONE);
-            viewHolder.rightLayout.setVisibility(View.VISIBLE);
-            viewHolder.rightMsg.setText(msg.getContent());
+            // 接收的消息：显示左边布局，隐藏右边布局
+            holder.leftLayout.setVisibility(View.VISIBLE);
+            holder.rightLayout.setVisibility(View.GONE);
+            holder.leftMsg.setText(msg.getContent());
+        } else if (msg.getType() == Msg.TYPE_SENT) {
+            // 发送的消息：隐藏左边布局，显示右边布局
+            holder.leftLayout.setVisibility(View.GONE);
+            holder.rightLayout.setVisibility(View.VISIBLE);
+            holder.rightMsg.setText(msg.getContent());
         }
     }
 

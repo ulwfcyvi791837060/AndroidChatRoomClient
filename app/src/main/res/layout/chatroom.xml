@@ -8,28 +8,29 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="?android:attr/actionBarSize"
-        android:background="@color/colorPrimary">
+        android:background="?attr/colorPrimary"> <!-- 建议使用主题颜色 -->
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:text="多人聊天室"
-            android:textColor="#F5F5F5"
-            android:textSize="20dp" />
+            android:textColor="#FFFFFF" 
+            android:textSize="20sp" /> <!-- 建议使用 sp 作为文字单位 -->
 
         <Button
             android:id="@+id/edit_up"
             android:layout_width="25dp"
             android:layout_height="25dp"
-            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true" 
             android:layout_centerVertical="true"
-            android:layout_marginLeft="10dp"
+            android:layout_marginStart="10dp"
             android:background="@mipmap/edit" />
 
     </RelativeLayout>
 
-    <android.support.v7.widget.RecyclerView
+    <!-- 【核心修复】将 RecyclerView 从 support 库版本替换为 AndroidX 版本 -->
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/msg_recycle_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -37,25 +38,26 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"> <!-- 添加 gravity 使组件垂直居中对齐 -->
 
         <EditText
             android:id="@+id/input_text"
             android:layout_width="0dp"
-            android:layout_height="37dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@drawable/input"
             android:hint="  输入聊天内容"
-            android:maxLines="2" />
+            android:maxLines="3"
+            android:minHeight="48dp" /> <!-- 建议：为可点击/触摸的元素设置最小尺寸 -->
 
         <Button
             android:id="@+id/send"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:alpha="0.5"
-            android:background="#F5DEB3"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
             android:text="发送"
-            android:textSize="17dp" />
+            android:textSize="17sp" /> <!-- 建议使用 sp 作为文字单位 -->
 
     </LinearLayout>
 

@@ -1,24 +1,25 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-
 buildscript {
-    
-    repositories {
-        google()
-        jcenter()
+    repositories {google()
+        mavenCentral() // 确保这里是 mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.4'
-        
+        // 【核心修复】将 AGP 版本升级到与 Gradle 8.x 兼容的版本
+        classpath 'com.android.tools.build:gradle:8.4.1'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
 }
 
+// 在新的 AGP 版本中，这个 allprojects 块可以被移除或简化，
+// 因为依赖仓库的管理方式已经改变。
+// 为保持简洁和现代化，我们可以在 settings.gradle 中定义仓库，
+// 但为了简单起见，我们暂时保留它。
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral() // 确保这里也是 mavenCentral()
     }
 }
 
