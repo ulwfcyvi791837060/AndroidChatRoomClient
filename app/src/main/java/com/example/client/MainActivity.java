@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 设置默认值
         nameInput.setText("Lpp");
-        ipInput.setText("222.24.34.118");
+        ipInput.setText("100.86.36.12");
         portInput.setText("12580");
 
         // 设置点击事件监听

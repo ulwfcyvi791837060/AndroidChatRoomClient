@@ -4,11 +4,15 @@ package com.example.client;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.ClipData;
+import android.content.ClipboardManager; // 【修改】使用新的 ClipboardManager
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast; // 【新增】导入 Toast
 
 import java.util.List;
 
@@ -41,7 +45,18 @@ public class MsgAdapter extends RecyclerView.Adapter<MsgAdapter.ViewHolder> {
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).
                 inflate(R.layout.msg_item, parent, false);
-        return new ViewHolder(view);
+        final ViewHolder holder = new ViewHolder(view);
+
+        holder.itemView.setOnLongClickListener(v -> {
+            int position = holder.getAdapterPosition();
+            if (position != RecyclerView.NO_POSITION) {
+                Msg msg = mMsgList.get(position);
+                copyMessageToClipboard(v.getContext(), msg.getContent());
+            }
+            return true;
+        });
+
+        return holder;
     }
 
     @Override
@@ -49,12 +64,10 @@ public class MsgAdapter extends RecyclerView.Adapter<MsgAdapter.ViewHolder> {
         Msg msg = mMsgList.get(position);
 
         if (msg.getType() == Msg.TYPE_RECEIVED) {
-            // 接收的消息：显示左边布局，隐藏右边布局
             holder.leftLayout.setVisibility(View.VISIBLE);
             holder.rightLayout.setVisibility(View.GONE);
             holder.leftMsg.setText(msg.getContent());
         } else if (msg.getType() == Msg.TYPE_SENT) {
-            // 发送的消息：隐藏左边布局，显示右边布局
             holder.leftLayout.setVisibility(View.GONE);
             holder.rightLayout.setVisibility(View.VISIBLE);
             holder.rightMsg.setText(msg.getContent());
@@ -64,5 +77,20 @@ public class MsgAdapter extends RecyclerView.Adapter<MsgAdapter.ViewHolder> {
     @Override
     public int getItemCount() {
         return mMsgList.size();
+    }
+
+    /**
+     * 【新增】一个独立的辅助方法，用于复制文本到剪贴板
+     * @param context 上下文
+     * @param text 要复制的文本
+     */
+    private void copyMessageToClipboard(Context context, String text) {
+        // 【核心修改】使用正确的 ClipboardManager 和 Context 常量
+        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData clip = ClipData.newPlainText("Copied Message", text);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(context, "消息已复制", Toast.LENGTH_SHORT).show();
+        }
     }
 }
