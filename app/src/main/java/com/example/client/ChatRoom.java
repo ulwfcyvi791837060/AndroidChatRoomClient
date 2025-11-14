@@ -48,7 +48,7 @@ public class ChatRoom extends AppCompatActivity {
 
     // 【修改】使用ScheduledExecutorService来处理定时心跳任务和普通网络任务
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-    private static final String HEARTBEAT_SIGNAL = "<heartbeat>";
+    private static final String HEARTBEAT_SIGNAL = "heartbeat-heartbeat";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,11 +124,12 @@ public class ChatRoom extends AppCompatActivity {
                 int len;
                 while (socket != null && !socket.isClosed() && (len = receiveInput.read(buffer)) != -1) {
                     String receivedMsg = new String(buffer, 0, len);
-                    // 【新增】如果收到的是心跳回声，则忽略，不显示在聊天界面
-                    if (HEARTBEAT_SIGNAL.equals(receivedMsg)) {
+                    // 【修改】如果收到的是心跳回声，则进行处理，避免在聊天界面显示
+
+                    if (HEARTBEAT_SIGNAL.equals(receivedMsg.trim())||"".equals(receivedMsg.trim())) {
                         continue;
                     }
-                    final Msg msg = new Msg(receivedMsg, Msg.TYPE_RECEIVED);
+                    final Msg msg = new Msg(receivedMsg.trim(), Msg.TYPE_RECEIVED);
                     runOnUiThread(() -> {
                         msgList.add(msg);
                         adapter.notifyItemInserted(msgList.size() - 1);
@@ -212,8 +213,7 @@ public class ChatRoom extends AppCompatActivity {
             if (!content.isEmpty()) {
                 @SuppressLint("SimpleDateFormat")
                 String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-                String messageToSend = content + "\n\n来自：" + name + "\n" + date;
-                sendMessage(messageToSend);
+                sendMessage(content);
             }
         });
     }

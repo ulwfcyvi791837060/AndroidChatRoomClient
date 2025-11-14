@@ -1,13 +1,13 @@
 package com.example.client;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-// 【修复】将 import 语句迁移到 AndroidX
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -17,6 +17,9 @@ public class MainActivity extends AppCompatActivity {
     private EditText nameInput;
     private EditText ipInput;
     private EditText portInput;
+
+    public static final String PREFS_NAME = "MyPrefsFile";
+    private static final String PREF_IP = "ipAddress";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,9 +38,13 @@ public class MainActivity extends AppCompatActivity {
         ipInput = findViewById(R.id.ip_input);
         portInput = findViewById(R.id.port_input);
 
+        // 加载保存的IP地址
+        SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
+        String savedIp = settings.getString(PREF_IP, "100.127.142.1");
+
         // 设置默认值
         nameInput.setText("Lpp");
-        ipInput.setText("100.86.36.12");
+        ipInput.setText(savedIp);
         portInput.setText("12580");
 
         // 设置点击事件监听
@@ -52,6 +59,11 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "名称、IP和端口不能为空", Toast.LENGTH_SHORT).show();
                 return;
             }
+
+            // 保存IP地址
+            SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
+            editor.putString(PREF_IP, ip);
+            editor.apply();
 
             // 创建意图并传递数据
             Intent intent = new Intent(MainActivity.this, ChatRoom.class);
